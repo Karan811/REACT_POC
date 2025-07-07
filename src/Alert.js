@@ -26,7 +26,18 @@ function AlertComponents() {
 
   return (
     <div className="alerts">
-        <p>Here are the alerts</p>
+       <p style={{
+  backgroundColor: '#e6f4ea',  // warm yellow background
+  padding: '10px 16px',
+  borderLeft: '5px solidrgb(11, 245, 50)', 
+  fontWeight: 'bold',
+  color: '#78350f',
+  borderRadius: '6px',
+  marginBottom: '12px',
+  fontSize: '16px'
+}}>
+  ⚠️ Here are the alerts
+</p>
       {alerts.map((alert, idx) => (
         <div key={idx} className="alert-box">
           🚨 {alert}
