@@ -6,7 +6,7 @@ import './App.css';
 
 function App() {
   return (
-    <div className="App">
+    <div className="Print">
       <h1>Printer name and status</h1>
       <PrinterStatus />
     </div>
