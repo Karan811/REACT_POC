@@ -1,15 +1,25 @@
 import React, { Component } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import PrinterStatus from './PrinterStatus';
+import BarcodeScannerForm from "./BarcodeScannerForm";
 import './App.css'; 
 
 
 function App() {
   return (
-    <div className="Print">
-      <h1>Printer name and status</h1>
-      <PrinterStatus />
-    </div>
+  <div>  
+    <div className="panel">
+    <h2>Printer</h2>
+    <PrinterStatus />
+  </div>
+  
+  <div className="panel">
+    <h2>Scanner</h2>
+    <BarcodeScannerForm />
+  </div>
+  </div>
+     
+    
   );
 }
 

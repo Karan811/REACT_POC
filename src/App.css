@@ -91,3 +91,11 @@ body {
   border-left-color: #ef4444;
   background-color: #fef2f2;
 }
+
+.panel {
+  border: 1px solid #ccc;
+  padding: 20px;
+  margin: 20px 0;
+  border-radius: 8px;
+  box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+}
