@@ -7,10 +7,21 @@ export default function PrinterStatus() {
   const [status, setStatus] = useState("Checking...");
   const [printers, setPrinters] = useState([]);
   const stompClientRef = useRef(null);
+  const [zplTemplate, setZplTemplate] = useState(null);
+const [loadingZpl, setLoadingZpl] = useState(false);
+const [previewing, setPreviewing] = useState(false);
   const printRef = useRef();
-
+  const cpcl = `! 0 200 200 210 1
+  LINE 20 20 180 20 2
+  TEXT 4 0 30 40 Hello
+  FORM
+  PRINT`;
+    const zpl = `^XA
+  ^FO50,50^A0N,40,40^FDTest Label^FS
+  ^XZ`;
+  
   useEffect(() => {
-    const socket = new SockJS("http://localhost:8080/ws");
+    const socket = new SockJS("http://localhost:8089/ws");
     const client = over(socket);
   
     client.connect({}, () => {
@@ -18,8 +29,10 @@ export default function PrinterStatus() {
         try {
           const data = JSON.parse(message.body);
           if (Array.isArray(data)) {
+            console.log(data);
             setPrinters(data); // Set list of printers
             console.log(data);
+            setStatus("Success");
           } else {
             // fallback if single printer info sent
             setPrinters([{ name: data.name || message.body }]);
@@ -37,87 +50,69 @@ export default function PrinterStatus() {
     };
   }, []);
 
-  const cpcl = `! 0 200 200 400 1\r
-  TEXT 4 0 30 20 VIMENPAQ\r
-  LINE 30 40 250 40 2\r
-  TEXT 2 0 30 55 SHIPPING LABEL\r
-  TEXT 1 0 30 80 Santo Domingo, DR\r
-  TEXT 1 0 30 100 Package ID: VMQ123456789DR\r
-  BARCODE 128 1 1 50 30 130 VMQ123456789DR\r
-  TEXT 0 0 30 190 Track: www.vimenpaq.com\r
-  PRINT\r
-  `;
-
-  const zpl = `^XA
-^CI28
-
-^FX === Header Section ===
-^CF0,60
-^FO150,30^FB600,1,0,C^FDVimenpaq^FS
-
-^CF0,30
-^FO100,100^FB600,1,0,C^FDAv. Winston Churchill #95^FS
-^FO100,140^FB600,1,0,C^FDSanto Domingo, Distrito Nacional^FS
-^FO100,180^FB600,1,0,C^FDDominican Republic^FS
-
-^FO50,220^GB700,3,3^FS
-
-^FX === Recipient Section ===
-^CFA,30
-^FO50,250^FDJohn Doe^FS
-^FO50,290^FD123 Calle Central^FS
-^FO50,330^FDSantiago, RD 51000^FS
-^FO50,370^FDDominican Republic^FS
-
-^FO50,410^GB700,3,3^FS
-
-^FX === Barcode Section ===
-^BY3,2,100
-^FO100,440^BCN,100,Y,N,N
-^FDVMQ123456789DR^FS
-^FO100,560^FDTracking #: VMQ123456789DR^FS
-
-^FO50,600^GB700,3,3^FS
-
-^FX === Reference and Center Info ===
-^CF0,30
-^FO50,630^FDRef1: INV-87456^FS
-^FO50,670^FDRef2: BOX-45A^FS
-^FO50,710^FDCenter: SDQ-WH1^FS
-
-^XZ`;
+ 
 
   
   const handlePrint = async () => {
-    const response = await fetch("http://localhost:8080/api/v1/print", {
-      method: "POST",
-      headers: { "Content-Type": "text/plain"},
-      body: cpcl
-    });
-
-    const result = await response.text();
-    alert(result);
-  };
-
-  const handleZplPreview = async () => {
-      
-    const response = await fetch("https://api.labelary.com/v1/printers/8dpmm/labels/4x6/0/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: zpl
-    });
+    setLoadingZpl(true);
+    try {
+      const response = await fetch("http://localhost:8089/api/v1/print", {
+        method: "GET",
+        // GET usually shouldn't include Content-Type; backend should return text/plain
+      });
   
-    if (response.ok) {
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank"); // open preview in new tab
-    } else {
-      alert("Failed to render label preview");
-      console.error(await response.text());
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Failed to fetch ZPL: ${response.status} ${errText}`);
+      }
+  
+      const zpl = await response.text();
+      setZplTemplate(zpl);
+      alert("ZPL fetched from backend and saved for preview.");
+      // console.log("ZPL:", zpl);
+    } catch (err) {
+      console.error("handlePrint error:", err);
+      alert("Error fetching ZPL: " + err.message);
+    } finally {
+      setLoadingZpl(false);
     }
   };
+  
+  // Use stored ZPL to call Labelary and open preview (PNG)
+  const handleZplPreview = async () => {
+    if (!zplTemplate) {
+      alert("No ZPL available. Click 'Fetch ZPL' first.");
+      return;
+    }
+  
+    setPreviewing(true);
+    try {
+      const response = await fetch("https://api.labelary.com/v1/printers/8dpmm/labels/4x6/0/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded", // Labelary accepts raw ZPL; many clients use this
+          Accept: "image/png"
+        },
+        body: zplTemplate
+      });
+  
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+      } else {
+        const txt = await response.text();
+        console.error("Labelary error:", response.status, txt);
+        alert("Failed to render label preview: " + response.status);
+      }
+    } catch (err) {
+      console.error("ZPL preview failed:", err);
+      alert("ZPL preview failed: " + err.message + ". If you see CORS errors, proxy via backend.");
+    } finally {
+      setPreviewing(false);
+    }
+  };
+  
   
 
   const getStatusColor = () => {
@@ -162,7 +157,13 @@ export default function PrinterStatus() {
 
       <div className="print-panel">
         <h3>🧾 Label Preview</h3>
-        <button onClick={handlePrint}>Print Test Label</button>
+              <button onClick={handlePrint} disabled={loadingZpl}>
+               {loadingZpl ? "Fetching ZPL..." : "Fetch ZPL (from backend)"}
+              </button>
+
+              <button onClick={handleZplPreview} disabled={!zplTemplate || previewing}>
+                {previewing ? "Previewing..." : "Preview ZPL"}
+              </button>
         {/* handlePrint handleZplPreview*/}
       </div>
 
