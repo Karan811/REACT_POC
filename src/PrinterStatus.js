@@ -21,7 +21,7 @@ const [previewing, setPreviewing] = useState(false);
   ^XZ`;
   
   useEffect(() => {
-    const socket = new SockJS("http://localhost:8089/ws");
+    const socket = new SockJS("http://localhost:8084/ws");
     const client = over(socket);
   
     client.connect({}, () => {
@@ -56,7 +56,7 @@ const [previewing, setPreviewing] = useState(false);
   const handlePrint = async () => {
     setLoadingZpl(true);
     try {
-      const response = await fetch("http://localhost:8089/api/v1/print", {
+      const response = await fetch("http://localhost:8084/consolidation-service/api/v1/preview-labels?ids=660,509", {
         method: "GET",
         // GET usually shouldn't include Content-Type; backend should return text/plain
       });
